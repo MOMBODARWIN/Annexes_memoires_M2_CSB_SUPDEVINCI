@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rapport Sharphound — FINEGIL.local | Pentest Barkene</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --crit: #da3633;
+    --high: #f0883e;
+    --med: #d29922;
+    --info: #58a6ff;
+    --green: #3fb950;
+    --accent: #bc8cff;
+    --badge-crit: #da3633;
+    --badge-high: #f0883e;
+    --badge-med: #d29922;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  .cover {
+    text-align: center;
+    padding: 80px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+  .cover h1 {
+    font-size: 2.4em;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+  .cover .subtitle {
+    font-size: 1.3em;
+    color: var(--accent);
+    margin-bottom: 30px;
+  }
+  .cover .meta {
+    color: var(--muted);
+    font-size: 0.95em;
+  }
+  .cover .meta span { display: block; margin: 4px 0; }
+
+  h2 {
+    font-size: 1.6em;
+    color: #fff;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 8px;
+    margin: 40px 0 20px;
+  }
+  h3 {
+    font-size: 1.2em;
+    color: var(--info);
+    margin: 25px 0 12px;
+  }
+  h4 {
+    font-size: 1.05em;
+    color: #e6edf3;
+    margin: 18px 0 8px;
+  }
+
+  /* Score bar */
+  .score-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .score-circle {
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: conic-gradient(var(--crit) 0deg, var(--crit) 360deg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.2em; font-weight: 900; color: #fff;
+    flex-shrink: 0;
+  }
+  .score-label { font-size: 1.1em; color: var(--muted); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin: 20px 0;
+  }
+  .card h3 { margin-top: 0; }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.78em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .badge-crit  { background: var(--badge-crit); color: #fff; }
+  .badge-high  { background: var(--badge-high); color: #fff; }
+  .badge-med   { background: var(--badge-med); color: #000; }
+  .badge-info  { background: #30363d; color: var(--info); }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.92em;
+  }
+  th, td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: #21262d;
+    color: #e6edf3;
+    font-weight: 600;
+    position: sticky; top: 0;
+  }
+  tr:hover { background: #1c2128; }
+
+  /* Finding */
+  .finding {
+    border-left: 4px solid var(--border);
+    padding: 16px 20px;
+    margin: 16px 0;
+    background: var(--card);
+    border-radius: 0 8px 8px 0;
+  }
+  .finding.crit  { border-left-color: var(--crit); }
+  .finding.high  { border-left-color: var(--high); }
+  .finding.med   { border-left-color: var(--med); }
+  .finding-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .finding-title { font-weight: 700; font-size: 1.05em; color: #fff; }
+
+  /* Code / Terminal */
+  pre {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    overflow-x: auto;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.88em;
+    line-height: 1.5;
+    margin: 12px 0;
+  }
+  code {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    background: #21262d;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* Lists */
+  ul, ol { margin: 10px 0 10px 24px; }
+  li { margin: 5px 0; }
+
+  /* Attack path */
+  .path-step {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 10px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .path-num {
+    background: var(--accent);
+    color: #000;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900;
+    flex-shrink: 0;
+  }
+
+  /* TOC */
+  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 24px; margin: 30px 0; }
+  .toc h3 { margin-top: 0; margin-bottom: 16px; }
+  .toc ol { margin-left: 20px; }
+  .toc a { color: var(--info); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  .footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85em;
+    margin-top: 60px;
+    padding: 30px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .flex { display: flex; gap: 16px; flex-wrap: wrap; }
+  .stat-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    text-align: center;
+    flex: 1;
+    min-width: 130px;
+  }
+  .stat-val { font-size: 1.8em; font-weight: 900; color: #fff; }
+  .stat-lbl { font-size: 0.82em; color: var(--muted); margin-top: 4px; }
+
+  .reco-row { display: flex; gap: 10px; align-items: flex-start; margin: 8px 0; }
+  .reco-prio { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.85em; flex-shrink: 0; color: #fff; }
+  .prio-p0 { background: var(--crit); }
+  .prio-p1 { background: var(--high); }
+  .prio-p2 { background: var(--med); }
+
+  @media print {
+    body { background: #fff; color: #000; }
+    .card, .finding { background: #f6f8fa; border-color: #d0d7de; }
+    pre { background: #f6f8fa; }
+    h2 { color: #000; }
+    .stat-val, .finding-title { color: #000; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== COVER ===== -->
+<div class="cover">
+  <h1>🔴 Rapport d'Analyse Sharphound</h1>
+  <div class="subtitle">Domaine FINEGIL.local — Phase Grey Box</div>
+  <div class="meta">
+    <span><strong>Auteur :</strong> MOMBO Darwin</span>
+    <span><strong>Contexte :</strong> Mastère Cybersécurité — Sup de Vinci 2025-2026</span>
+    <span><strong>Mission :</strong> Pentest autorisé — Hardening Active Directory</span>
+    <span><strong>Date de collecte :</strong> 10 juillet 2026</span>
+    <span><strong>Outil :</strong> SharpHound v4.3.1 (obfusqué ConfuserEx)</span>
+  </div>
+  <div class="score-bar" style="justify-content:center; margin-top:30px;">
+    <div class="score-circle">100</div>
+    <div class="score-label">Domain Risk Level<br><span style="color:var(--crit);font-weight:700;">CRITIQUE</span><br><small>(Cohérent avec PingCastle 100/100)</small></div>
+  </div>
+</div>
+
+<!-- ===== TOC ===== -->
+<div class="toc">
+<h3>📑 Table des matières</h3>
+<ol>
+  <li><a href="#synthese">Synthèse exécutive</a></li>
+  <li><a href="#metriques">Métriques quantitatives du domaine</a></li>
+  <li><a href="#findings">Findings détaillés (BH-01 → BH-08)</a></li>
+  <li><a href="#chemins">Chemins d'attaque concrets</a></li>
+  <li><a href="#mitre">Mapping MITRE ATT&amp;CK</a></li>
+  <li><a href="#correlation">Corrélation PingCastle ↔ SharpHound</a></li>
+  <li><a href="#remediation">Plan de remédiation priorisé</a></li>
+  <li><a href="#synthese-tableau">Tableau de synthèse des findings</a></li>
+</ol>
+</div>
+
+<!-- ===== 1. SYNTHESE ===== -->
+<h2 id="synthese">1. Synthèse exécutive</h2>
+
+<div class="card">
+<p>L'analyse <strong>SharpHound</strong> du dump SharpHound v4.3.1 (collecte du 10 juillet 2026) confirme et amplifie le constat critique établi par <strong>PingCastle</strong> (Domain Risk Level <span class="badge badge-crit">100/100</span>). L'environnement Active Directory de <strong>Barkene</strong> présente <strong>8 findings exploitables</strong>, dont <strong>4 critiques</strong>, permettant à un attaquant disposant d'un simple compte utilisateur de compromettre l'intégralité du domaine FINEGIL.local en moins de 30 minutes.</p>
+
+<p style="margin-top:12px;"><strong>Cibles :</strong></p>
+<ul>
+  <li>Domaine : <code>FINEGIL.local</code></li>
+  <li>Contrôleurs de domaine : <code>SRV-01-ADY-B-01</code> (172.21.204.10) et <code>SRV-21-ADY-B-01</code> (172.20.103.11)</li>
+  <li>Niveau fonctionnel : Windows Server 2016, schéma 2025</li>
+</ul>
+
+<p style="margin-top:12px;"><strong>Engagement :</strong> Signé le 19/06/2026 par Antoine RODRIGUEZ (RSSI) et Alexandre LITAUDON (DSI).</p>
+
+<p style="margin-top:12px;"><strong>Scénario de compromission simulée :</strong> Vol d'une VM Windows 11 jointe au domaine avec le compte <code>ADM.MOMBO</code> (membre du groupe <code>Administrateurs du domaine</code>), SentinelOne désactivé sur le dossier <code>C:\Outils\</code>.</p>
+</div>
+
+<div class="flex" style="margin-top:20px;">
+  <div class="stat-box"><div class="stat-val" style="color:var(--crit);">4</div><div class="stat-lbl">Findings CRITIQUES</div></div>
+  <div class="stat-box"><div class="stat-val" style="color:var(--high);">2</div><div class="stat-lbl">Findings ÉLEVÉS</div></div>
+  <div class="stat-box"><div class="stat-val" style="color:var(--med);">2</div><div class="stat-lbl">Findings MOYENS</div></div>
+  <div class="stat-box"><div class="stat-val">4</div><div class="stat-lbl">Chemins d'attaque</div></div>
+  <div class="stat-box"><div class="stat-val">100/100</div><div class="stat-lbl">Domain Risk</div></div>
+</div>
+
+<!-- ===== 2. METRIQUES ===== -->
+<h2 id="metriques">2. Métriques quantitatives du domaine</h2>
+
+<table>
+  <tr><th>Métrique</th><th>Valeur</th><th>Commentaire</th></tr>
+  <tr><td>Utilisateurs total</td><td><strong>1 128</strong></td><td>Écart de +4 vs PingCastle (comptes techniques)</td></tr>
+  <tr><td>Utilisateurs actifs</td><td><strong>1 108</strong></td><td>✅ Cohérent (1 107 PingCastle)</td></tr>
+  <tr><td>Utilisateurs désactivés</td><td><strong>19</strong></td><td>✅ Cohérent (17 PingCastle, snapshot)</td></tr>
+  <tr><td>Groupes</td><td><strong>482</strong></td><td>—</td></tr>
+  <tr><td>Ordinateurs</td><td><strong>477</strong></td><td>—</td></tr>
+  <tr><td>Contrôleurs de domaine</td><td><strong>2</strong></td><td>Windows Server 2025 Standard</td></tr>
+  <tr><td>Comptes <code>pwdneverexpires</code></td><td><strong style="color:var(--high);">431 (38 %)</strong></td><td>✅ Cohérent (427 PingCastle)</td></tr>
+  <tr><td>Comptes <code>passwordnotreqd</code></td><td><strong style="color:var(--crit);">5</strong></td><td>⚠️ SharpHound trouve +2 vs PingCastle (3)</td></tr>
+  <tr><td>Comptes <code>admincount=true</code></td><td><strong style="color:var(--crit);">53</strong></td><td>31 fantômes (AdminSDHolder non nettoyé)</td></tr>
+  <tr><td>Comptes Kerberoastable</td><td><strong style="color:var(--crit);">2</strong></td><td>Dont ADMINISTRATEUR (critique)</td></tr>
+  <tr><td>Comptes AS-REP Roastable</td><td><strong style="color:var(--green);">0</strong></td><td>✅ Aucun</td></tr>
+  <tr><td>SID History</td><td><strong style="color:var(--green);">0</strong></td><td>✅ Aucun</td></tr>
+  <tr><td>Comptes DES only</td><td><strong style="color:var(--green);">0</strong></td><td>✅ Aucun</td></tr>
+  <tr><td>LAPS installé</td><td><strong style="color:var(--crit);">0 / 477</strong></td><td>🔴 Aucune machine</td></tr>
+  <tr><td>Unconstrained Delegation</td><td><strong style="color:var(--high);">2</strong></td><td>Les 2 DCs (SRV-01-ADY et SRV-21-ADY)</td></tr>
+  <tr><td>KRBTGT age</td><td><strong style="color:var(--crit);">2 350 jours</strong></td><td>~6,4 ans sans rotation</td></tr>
+</table>
+
+<h3>2.1 Domain Admins (admincount=true) — 53 comptes</h3>
+
+<div class="card">
+<p>La liste complète des comptes avec le flag <code>admincount=true</code> révèle <strong>31 comptes fantômes</strong> (ex-administrateurs dont l'AdminSDHolder n'a jamais été nettoyé). Voici les plus critiques :</p>
+<table>
+  <tr><th>Compte</th><th>Type</th><th>Risque</th></tr>
+  <tr><td><code>KRBTGT@FINEGIL.LOCAL</code></td><td>Compte système</td><td><span class="badge badge-crit">CRITIQUE</span> — 2 350j sans rotation</td></tr>
+  <tr><td><code>ADMINISTRATEUR@FINEGIL.LOCAL</code></td><td>Builtin Admin</td><td><span class="badge badge-crit">CRITIQUE</span> — Kerberoastable (SPN MSSQL)</td></tr>
+  <tr><td><code>AVAMARBACKUPUSER@FINEGIL.LOCAL</code></td><td>Compte backup Dell</td><td><span class="badge badge-high">ÉLEVÉ</span></td></tr>
+  <tr><td><code>SOPHOS@FINEGIL.LOCAL</code></td><td>Compte antivirus</td><td><span class="badge badge-high">ÉLEVÉ</span></td></tr>
+  <tr><td><code>ADM.NANNDO@FINEGIL.LOCAL</code></td><td>Admin DSI</td><td><span class="badge badge-high">ÉLEVÉ</span></td></tr>
+  <tr><td><code>ADM.LITAUDON@FINEGIL.LOCAL</code></td><td>Admin DSI</td><td><span class="badge badge-high">ÉLEVÉ</span></td></tr>
+  <tr><td><code>ADM.RODRIGUEZ@FINEGIL.LOCAL</code></td><td>Admin RSSI</td><td><span class="badge badge-high">ÉLEVÉ</span></td></tr>
+  <tr><td><code>U_SYS_NINJA@FINEGIL.LOCAL</code></td><td>Compte infra</td><td><span class="badge badge-med">MOYEN</span></td></tr>
+  <tr><td><code>U_SYS_FORTIGATEFW@FINEGIL.LOCAL</code></td><td>Compte infra</td><td><span class="badge badge-med">MOYEN</span></td></tr>
+  <tr><td><code>ADM.MOMBO@FINEGIL.LOCAL</code></td><td>Compte d'audit</td><td><span class="badge badge-info">AUDIT</span></td></tr>
+  <tr><td colspan="3"><em>… et 43 autres comptes (admins techniques, chefs de chantier, comptes de service)</em></td></tr>
+</table>
+</div>
+
+<h3>2.2 Machines sur OS non supporté (EOL) — 12 machines</h3>
+
+<table>
+  <tr><th>Machine</th><th>OS</th><th>Fin de support</th><th>Exploit connu</th></tr>
+  <tr><td><code>SRV-APP2.FINEGIL.LOCAL</code></td><td>Windows XP SP3</td><td style="color:var(--crit);">Avril 2014 ❌</td><td>MS08-067 (Conficker), MS17-010</td></tr>
+  <tr><td><code>PRESRV002.FINEGIL.LOCAL</code></td><td>Windows Server 2008 R2</td><td style="color:var(--crit);">Janvier 2020 ❌</td><td>EternalBlue, BlueKeep</td></tr>
+  <tr><td><code>SRV-ACCESS.FINEGIL.LOCAL</code></td><td>Windows Server 2008 R2 SP1</td><td style="color:var(--crit);">Janvier 2020 ❌</td><td>EternalBlue, BlueKeep</td></tr>
+  <tr><td><code>SRV-PRINT.FINEGIL.LOCAL</code></td><td>Windows Server 2008 R2 SP1</td><td style="color:var(--crit);">Janvier 2020 ❌</td><td>EternalBlue, PrintNightmare</td></tr>
+  <tr><td><code>SRV-ABS.FINEGIL.LOCAL</code></td><td>Windows Server 2008 R2 SP1</td><td style="color:var(--crit);">Janvier 2020 ❌</td><td>EternalBlue, BlueKeep</td></tr>
+  <tr><td><code>ABT-HP.FINEGIL.LOCAL</code></td><td>Windows 7 SP1</td><td style="color:var(--crit);">Janvier 2020 ❌</td><td>EternalBlue, BlueKeep</td></tr>
+  <tr><td><code>PRESRV001.FINEGIL.LOCAL</code></td><td>Windows Server 2012 R2</td><td style="color:var(--high);">Octobre 2023 ❌</td><td>Zerologon, PrintNightmare</td></tr>
+  <tr><td><code>PRESRV003.FINEGIL.LOCAL</code></td><td>Windows Server 2012 R2</td><td style="color:var(--high);">Octobre 2023 ❌</td><td>Zerologon, PrintNightmare</td></tr>
+  <tr><td><code>SRV-PROD.FINEGIL.LOCAL</code></td><td>Windows Server 2012</td><td style="color:var(--high);">Octobre 2023 ❌</td><td>Zerologon</td></tr>
+  <tr><td><code>SRV-SAGE.FINEGIL.LOCAL</code></td><td>Windows Server 2012 R2</td><td style="color:var(--high);">Octobre 2023 ❌</td><td>Zerologon</td></tr>
+  <tr><td><code>ABS-TSE.FINEGIL.LOCAL</code></td><td>Windows Server 2012 R2</td><td style="color:var(--high);">Octobre 2023 ❌</td><td>Zerologon</td></tr>
+  <tr><td><code>SERVEURW2012R2E.FINEGIL.LOCAL</code></td><td>Windows Server 2012 R2 Essentials</td><td style="color:var(--high);">Janvier 2017 ❌</td><td>Zerologon + SPN MSSQL ADMINISTRATEUR</td></tr>
+</table>
+
+<!-- ===== 3. FINDINGS ===== -->
+<h2 id="findings">3. Findings détaillés</h2>
+
+<!-- BH-01 -->
+<div class="finding crit">
+  <div class="finding-header">
+    <span class="finding-title">BH-01 — Compte ADMINISTRATEUR Kerberoastable</span>
+    <span class="badge badge-crit">CRITIQUE — CVSS 9.8</span>
+  </div>
+  <p><strong>Technique MITRE :</strong> T1558.003 — Steal or Forge Kerberos Tickets: Kerberoasting</p>
+  <p><strong>Description :</strong> Le compte <code>ADMINISTRATEUR@FINEGIL.LOCAL</code> (compte builtin Administrator du domaine) possède un Service Principal Name enregistré sur le service MSSQL :</p>
+  <pre><code>SPN: MSSQLSvc/ServeurW2012R2E.FINEGIL.local:56634</code></pre>
+  <p>Ce SPN rend le compte <strong>Kerberoastable</strong>. Tout utilisateur authentifié du domaine peut demander un ticket TGS pour ce SPN, exporter le hash et tenter de le cracker hors-ligne (Hashcat mode 13100).</p>
+  <p><strong>Exploitation :</strong></p>
+  <pre><code># Étape 1 : Demander le TGS
+impacket-GetUserSPNs FINEGIL.local/ANY_USER -request -dc-ip 172.21.204.10
+
+# Étape 2 : Cracker le hash
+hashcat -m 13100 tgs_administrateur.txt rockyou.txt --force
+
+# Étape 3 : Pass-the-Hash vers le DC
+impacket-psexec -hashes :NTLM_HASH ADMINISTRATEUR@172.21.204.10</code></pre>
+  <p><strong>Impact :</strong> Si le mot de passe est cracké → compromission totale du domaine (compte Administrator = DCSync natif, Golden Ticket).</p>
+  <p><strong>Recommandation :</strong></p>
+  <ul>
+    <li>🔴 P0 : Reset immédiat du mot de passe ADMINISTRATEUR (32+ caractères)</li>
+    <li>🔴 P0 : Retrait du SPN MSSQL — créer un compte de service dédié (gMSA)</li>
+    <li>🔴 P0 : Désactiver le compte Administrator au profit d'un compte admin nominatif (Tier 0)</li>
+  </ul>
+</div>
+
+<!-- BH-02 -->
+<div class="finding crit">
+  <div class="finding-header">
+    <span class="finding-title">BH-02 — WriteDacl sur domaine pour Exchange Organization Administrators</span>
+    <span class="badge badge-crit">CRITIQUE — CVSS 9.9</span>
+  </div>
+  <p><strong>Techniques MITRE :</strong> T1003.006 (DCSync) + T1222.001 (File/Directory Permissions Modification)</p>
+  <p><strong>Description :</strong> Le groupe <strong>Exchange Organization Administrators</strong> (RID 3620) dispose d'un <strong>WriteDacl</strong> sur l'objet racine du domaine <code>CN=FINEGIL,DC=FINEGIL,DC=LOCAL</code>. Ce droit permet à ses membres de <strong>modifier la DACL du domaine</strong> et donc d'accorder le privilège DCSync à n'importe quel compte.</p>
+  <p><strong>ACL critiques sur l'objet domaine :</strong></p>
+  <table>
+    <tr><th>Droit</th><th>Attribué à</th><th>Risque</th></tr>
+    <tr><td>WriteDacl</td><td>S-1-5-32-544 (Builtin Administrators)</td><td>🟠</td></tr>
+    <tr><td>WriteOwner</td><td>S-1-5-32-544 (Builtin Administrators)</td><td>🟠</td></tr>
+    <tr><td>WriteDacl</td><td>S-1-5-21-...-512 (Domain Admins)</td><td>🟠</td></tr>
+    <tr><td>WriteOwner</td><td>S-1-5-21-...-512 (Domain Admins)</td><td>🟠</td></tr>
+    <tr><td>GenericAll</td><td>S-1-5-21-...-519 (Enterprise Admins)</td><td>🟠</td></tr>
+    <tr><td style="color:var(--crit);">WriteDacl</td><td style="color:var(--crit);">S-1-5-21-...-3620 (Exchange Org Admins)</td><td><span class="badge badge-crit">CRITIQUE</span></td></tr>
+  </table>
+  <p><strong>Exploitation :</strong></p>
+  <pre><code># Étape 1 : Ajouter un utilisateur compromis au groupe Exchange Organization Administrators
+net rpc group addmem "Exchange Organization Administrators" USER -S DC_IP
+
+# Étape 2 : DCSync
+impacket-secretsdump FINEGIL/USER:PASS@172.21.204.10 -just-dc-user KRBTGT
+
+# Étape 3 : Golden Ticket → compromission totale
+# Avec le hash KRBTGT récupéré, générer un Golden Ticket valide 10 ans</code></pre>
+  <p><strong>Recommandation :</strong></p>
+  <ul>
+    <li>🔴 P0 : Nettoyer les permissions Exchange héritées (script Microsoft Exchange Best Practices)</li>
+    <li>🔴 P0 : Supprimer le groupe Exchange Organization Administrators ou le vider</li>
+    <li>🔴 P0 : Vérifier qu'aucun DC n'est membre de ce groupe</li>
+  </ul>
+</div>
+
+<!-- BH-03 -->
+<div class="finding high">
+  <div class="finding-header">
+    <span class="finding-title">BH-03 — 53 comptes admincount=true dont 31 fantômes</span>
+    <span class="badge badge-high">ÉLEVÉ — CVSS 8.5</span>
+  </div>
+  <p><strong>Technique MITRE :</strong> T1078.002 — Valid Accounts: Domain Accounts</p>
+  <p><strong>Description :</strong> Le mécanisme <strong>AdminSDHolder</strong> propage un Security Descriptor restrictif aux membres de groupes privilégiés toutes les 60 minutes. Lorsqu'un compte est retiré d'un groupe privilégié, <strong>son attribut <code>admincount</code> reste à 1</strong> sans que la SD soit nettoyée. Résultat : 31 comptes « fantômes » héritent de permissions administratives résiduelles.</p>
+  <p><strong>Comptes critiques identifiés :</strong></p>
+  <ul>
+    <li><code>AVAMARBACKUPUSER</code> — Compte backup Dell, probablement inutilisé</li>
+    <li><code>SOPHOS</code> — Compte antivirus legacy</li>
+    <li><code>U_SYS_NINJA</code>, <code>U_SYS_FORTIGATEFW</code> — Comptes d'infrastructure</li>
+    <li><code>ADMINLFT</code> — Compte admin legacy</li>
+    <li>31 comptes ex-administrateurs dont la SD AdminSDHolder n'a jamais été révoquée</li>
+  </ul>
+  <p><strong>Recommandation :</strong></p>
+  <ul>
+    <li>🟠 P1 : Audit complet des 53 comptes admincount=true</li>
+    <li>🟠 P1 : Nettoyage manuel de l'attribut admincount pour les 31 fantômes</li>
+    <li>🟠 P1 : Mise en place d'un script de nettoyage périodique AdminSDHolder</li>
+  </ul>
+</div>
+
+<!-- BH-04 -->
+<div class="finding crit">
+  <div class="finding-header">
+    <span class="finding-title">BH-04 — 12 machines sur OS non supporté (dont Windows XP)</span>
+    <span class="badge badge-crit">CRITIQUE — CVSS 9.0</span>
+  </div>
+  <p><strong>Techniques MITRE :</strong> T1210 (Exploitation of Remote Services), T1003 (OS Credential Dumping)</p>
+  <p><strong>Description :</strong> 12 machines du parc utilisent des systèmes d'exploitation en fin de vie (EOL) :</p>
+  <ul>
+    <li><strong>SRV-APP2</strong> : Windows XP SP3 — EOL depuis avril 2014 (plus de 12 ans)</li>
+    <li><strong>5 serveurs</strong> Windows Server 2008 R2 — EOL depuis janvier 2020</li>
+    <li><strong>1 poste</strong> Windows 7 SP1 — EOL depuis janvier 2020</li>
+    <li><strong>5 serveurs</strong> Windows Server 2012/R2 — EOL depuis octobre 2023</li>
+  </ul>
+  <p><strong>Exploits exploitables :</strong></p>
+  <ul>
+    <li>Windows XP : MS08-067 (Conficker), MS17-010 (EternalBlue) — pas de Credential Guard</li>
+    <li>Windows 7 / 2008 R2 : EternalBlue (MS17-010), BlueKeep (CVE-2019-0708)</li>
+    <li>Windows Server 2012 R2 : Zerologon (CVE-2020-1472), PrintNightmare (CVE-2021-1675)</li>
+  </ul>
+  <p><strong>Recommandation :</strong></p>
+  <ul>
+    <li>🔴 P0 : Déconnexion immédiate de SRV-APP2 (Windows XP) du réseau</li>
+    <li>🟠 P1 : Plan de migration prioritaire pour les 11 autres machines EOL</li>
+    <li>🟠 P1 : Segmentation réseau des machines non migrables</li>
+  </ul>
+</div>
+
+<!-- BH-05 -->
+<div class="finding high">
+  <div class="finding-header">
+    <span class="finding-title">BH-05 — LAPS absent sur 477 machines (0 %)</span>
+    <span class="badge badge-high">ÉLEVÉ — CVSS 8.0</span>
+  </div>
+  <p><strong>Technique MITRE :</strong> T1078.001 — Valid Accounts: Default Accounts</p>
+  <p><strong>Description :</strong> Aucune des 477 machines du parc n'a <strong>LAPS</strong> (Local Administrator Password Solution) installé. Le mot de passe du compte <code>Administrator</code> local est donc identique sur toutes les machines ou suit un pattern prévisible.</p>
+  <p><strong>Impact :</strong> Si un attaquant compromet une machine et extrait le hash NTLM du compte Administrator local, il peut le réutiliser sur les 476 autres machines (lateral movement instantané).</p>
+  <p><strong>Recommandation :</strong></p>
+  <ul>
+    <li>🟠 P1 : Déploiement LAPS sur l'ensemble du parc (477 machines)</li>
+    <li>🟠 P1 : GPO de restriction du compte Administrator local</li>
+    <li>🟡 P2 : Rotation forcée des mots de passe locaux post-déploiement LAPS</li>
+  </ul>
+</div>
+
+<!-- BH-06 -->
+<div class="finding med">
+  <div class="finding-header">
+    <span class="finding-title">BH-06 — Unconstrained Delegation sur les 2 DCs</span>
+    <span class="badge badge-med">MOYEN — CVSS 6.5</span>
+  </div>
+  <p><strong>Technique MITRE :</strong> T1558.001 — Steal or Forge Kerberos Tickets: Golden Ticket</p>
+  <p><strong>Description :</strong> Les deux contrôleurs de domaine ont la délégation non contrainte (<em>TrustedForDelegation</em>) activée :</p>
+  <ul>
+    <li><code>SRV-21-ADY-B-01.FINEGIL.LOCAL</code></li>
+    <li><code>SRV-01-ADY-B-01.FINEGIL.LOCAL</code></li>
+  </ul>
+  <p><strong>Vecteur d'attaque :</strong> Coercition d'authentification (PrinterBug, PetitPotam, Coercer) vers un DC → extraction d'un TGT d'admin → Pass-the-Ticket.</p>
+  <p><strong>Recommandation :</strong></p>
+  <ul>
+    <li>🟠 P1 : Désactiver l'Unconstrained Delegation sur les deux DCs</li>
+    <li>🟠 P1 : Activer le flag « <em>Account is sensitive and cannot be delegated</em> » pour tous les comptes privilégiés</li>
+  </ul>
+</div>
+
+<!-- BH-07 -->
+<div class="finding med">
+  <div class="finding-header">
+    <span class="finding-title">BH-07 — 431 comptes avec mot de passe n'expirant jamais (38 %)</span>
+    <span class="badge badge-med">MOYEN — CVSS 5.5</span>
+  </div>
+  <p><strong>Technique MITRE :</strong> T1078.002 — Valid Accounts: Domain Accounts</p>
+  <p><strong>Description :</strong> 431 comptes sur 1 128 (38 %) ont l'attribut <code>pwdneverexpires</code> activé. Ces comptes ne sont jamais soumis à la politique de rotation des mots de passe, augmentant la fenêtre d'exploitation en cas de vol de credentials.</p>
+  <p><strong>Recommandation :</strong></p>
+  <ul>
+    <li>🟡 P2 : Audit et justification pour chaque compte pwdneverexpires</li>
+    <li>🟡 P2 : Migration vers des gMSA pour les comptes de service</li>
+    <li>🟡 P2 : Application d'une politique de rotation stricte</li>
+  </ul>
+</div>
+
+<!-- BH-08 -->
+<div class="finding med">
+  <div class="finding-header">
+    <span class="finding-title">BH-08 — 5 comptes avec mot de passe non requis</span>
+    <span class="badge badge-med">MOYEN — CVSS 5.0</span>
+  </div>
+  <p><strong>Technique MITRE :</strong> T1078.001 — Valid Accounts: Default Accounts</p>
+  <p><strong>Description :</strong> 5 comptes ont l'attribut <code>passwordnotreqd</code> activé, ce qui signifie qu'ils peuvent légalement avoir un mot de passe vide. SharpHound en a détecté 5 alors que PingCastle n'en avait trouvé que 3.</p>
+  <p><strong>Recommandation :</strong></p>
+  <ul>
+    <li>🟡 P2 : Identification et correction des 5 comptes concernés</li>
+    <li>🟡 P2 : Mise en place d'une GPO interdisant les mots de passe vides</li>
+  </ul>
+</div>
+
+<!-- ===== 4. CHEMINS D'ATTAQUE ===== -->
+<h2 id="chemins">4. Chemins d'attaque concrets</h2>
+
+<div class="card">
+<h3>Contexte</h3>
+<p>Scénario de compromission simulée : <strong>vol d'une VM Windows 11</strong> sur laquelle l'auditeur est connecté en tant que <code>ADM.MOMBO</code> (compte ayant joint la machine au domaine, <code>admincount=true</code>). SentinelOne est désactivé sur le dossier <code>C:\Outils\</code>.</p>
+</div>
+
+<h3>Chemin 1 : Vol VM → Mimikatz → Lateral Move (LAPS absent)</h3>
+<div class="path-step"><div class="path-num">1</div><div>Vol de la VM Windows 11 jointe au domaine FINEGIL.local</div></div>
+<div class="path-step"><div class="path-num">2</div><div>Extraction des credentials <code>ADM.MOMBO</code> via Mimikatz : <code>sekurlsa::logonpasswords</code></div></div>
+<div class="path-step"><div class="path-num">3</div><div>Récupération du hash NTLM (compte <code>admincount=true</code>)</div></div>
+<div class="path-step"><div class="path-num">4</div><div>LAPS absent → le compte <code>Administrator</code> local a un mot de passe identique ou prévisible sur les 477 machines</div></div>
+<div class="path-step"><div class="path-num">5</div><div>Scan SMB massif : réutilisation du hash local Administrator sur les 477 machines</div></div>
+<div class="path-step"><div class="path-num">6</div><div>Pivot vers n'importe quelle machine du parc ✅</div></div>
+
+<h3>Chemin 2 : admincount=true → Exchange WriteDacl → DCSync</h3>
+<div class="path-step"><div class="path-num">1</div><div>Compromission de n'importe quel des 53 comptes <code>admincount=true</code></div></div>
+<div class="path-step"><div class="path-num">2</div><div>Le groupe <strong>Exchange Organization Administrators</strong> (RID 3620) a <code>WriteDacl</code> sur la racine du domaine</div></div>
+<div class="path-step"><div class="path-num">3</div><div>Ajout du compte compromis au groupe Exchange Org Admins</div></div>
+<div class="path-step"><div class="path-num">4</div><div>DCSync : <code>secretsdump.py FINEGIL/USER:PASS@172.21.204.10</code></div></div>
+<div class="path-step"><div class="path-num">5</div><div>Extraction du hash KRBTGT → Golden Ticket</div></div>
+<div class="path-step"><div class="path-num">6</div><div>Domain Admin total et persistant ✅</div></div>
+
+<h3>Chemin 3 : Kerberoasting ADMINISTRATEUR</h3>
+<div class="path-step"><div class="path-num">1</div><div>Authentification avec n'importe quel compte du domaine</div></div>
+<div class="path-step"><div class="path-num">2</div><div>Demande de ticket TGS pour le SPN <code>MSSQLSvc/ServeurW2012R2E.FINEGIL.local</code></div></div>
+<div class="path-step"><div class="path-num">3</div><div>Crack du hash hors-ligne (Hashcat mode 13100)</div></div>
+<div class="path-step"><div class="path-num">4</div><div>Si cracké → Pass-the-Hash <code>ADMINISTRATEUR</code> vers le DC</div></div>
+<div class="path-step"><div class="path-num">5</div><div>ntdsutil → extraction NTDS.dit</div></div>
+<div class="path-step"><div class="path-num">6</div><div>Compromission totale du domaine ✅</div></div>
+
+<h3>Chemin 4 : Attaque serveur Windows XP (SRV-APP2)</h3>
+<div class="path-step"><div class="path-num">1</div><div>Compromission initiale (peu importe le vecteur)</div></div>
+<div class="path-step"><div class="path-num">2</div><div>Lateral move vers <code>SRV-APP2</code> (Windows XP SP3)</div></div>
+<div class="path-step"><div class="path-num">3</div><div>Exploitation MS08-067 (Conficker) ou MS17-010 (EternalBlue)</div></div>
+<div class="path-step"><div class="path-num">4</div><div>Aucune protection : pas de Credential Guard, pas de patchs depuis 2014</div></div>
+<div class="path-step"><div class="path-num">5</div><div>Mimikatz direct → extraction de tous les credentials en cache</div></div>
+<div class="path-step"><div class="path-num">6</div><div>Pivot vers le DC si un admin s'est connecté ✅</div></div>
+
+<!-- ===== 5. MITRE ===== -->
+<h2 id="mitre">5. Mapping MITRE ATT&amp;CK</h2>
+
+<table>
+  <tr><th>Finding</th><th>Tactic</th><th>Technique ID</th><th>Technique</th></tr>
+  <tr>
+    <td>BH-01</td>
+    <td>Credential Access</td>
+    <td>T1558.003</td>
+    <td>Steal or Forge Kerberos Tickets: Kerberoasting</td>
+  </tr>
+  <tr>
+    <td>BH-02</td>
+    <td>Credential Access</td>
+    <td>T1003.006</td>
+    <td>OS Credential Dumping: DCSync</td>
+  </tr>
+  <tr>
+    <td>BH-02</td>
+    <td>Defense Evasion</td>
+    <td>T1222.001</td>
+    <td>File/Directory Permissions Modification: Windows</td>
+  </tr>
+  <tr>
+    <td>BH-03</td>
+    <td>Defense Evasion / Persistence</td>
+    <td>T1078.002</td>
+    <td>Valid Accounts: Domain Accounts</td>
+  </tr>
+  <tr>
+    <td>BH-04</td>
+    <td>Lateral Movement</td>
+    <td>T1210</td>
+    <td>Exploitation of Remote Services</td>
+  </tr>
+  <tr>
+    <td>BH-05</td>
+    <td>Lateral Movement</td>
+    <td>T1078.001</td>
+    <td>Valid Accounts: Default Accounts</td>
+  </tr>
+  <tr>
+    <td>BH-06</td>
+    <td>Credential Access</td>
+    <td>T1558.001</td>
+    <td>Steal or Forge Kerberos Tickets: Golden Ticket</td>
+  </tr>
+  <tr>
+    <td>BH-07</td>
+    <td>Persistence</td>
+    <td>T1078.002</td>
+    <td>Valid Accounts: Domain Accounts</td>
+  </tr>
+  <tr>
+    <td>BH-08</td>
+    <td>Initial Access</td>
+    <td>T1078.001</td>
+    <td>Valid Accounts: Default Accounts</td>
+  </tr>
+  <tr>
+    <td>—</td>
+    <td>Discovery</td>
+    <td>T1087.002</td>
+    <td>Account Discovery: Domain Account</td>
+  </tr>
+  <tr>
+    <td>—</td>
+    <td>Discovery</td>
+    <td>T1069.002</td>
+    <td>Permission Groups Discovery: Domain Groups</td>
+  </tr>
+</table>
+
+<!-- ===== 6. CORRELATION ===== -->
+<h2 id="correlation">6. Corrélation PingCastle ↔ SharpHound</h2>
+
+<table>
+  <tr><th>Métrique</th><th>PingCastle</th><th>SharpHound</th><th>Cohérence</th></tr>
+  <tr><td>Utilisateurs total</td><td>1 124</td><td>1 128</td><td>✅ Écart de +4 (comptes techniques)</td></tr>
+  <tr><td>Utilisateurs actifs</td><td>1 107</td><td>1 108</td><td>✅</td></tr>
+  <tr><td>Comptes désactivés</td><td>17</td><td>19</td><td>✅ (PingCastle live, SharpHoundsnapshot)</td></tr>
+  <tr><td>pwdneverexpires</td><td>427</td><td>431</td><td>✅ (38 %)</td></tr>
+  <tr><td>passwordnotreqd</td><td>3</td><td>5</td><td>⚠️ SharpHound trouve +2</td></tr>
+  <tr><td>Kerberoastable (SPN)</td><td>14</td><td>2</td><td>⚠️ Métriques différentes (scope)</td></tr>
+  <tr><td>KRBTGT age</td><td>2 350 jours</td><td>2 350 jours</td><td>✅</td></tr>
+  <tr><td>LAPS installé</td><td>0</td><td>0 / 477</td><td>✅</td></tr>
+  <tr><td>Domain Admins réels</td><td>19</td><td>53 (admincount)</td><td>✅ 31 fantômes AdminSDHolder</td></tr>
+  <tr><td>OS non supportés</td><td>14 PC</td><td>12 serveurs</td><td>✅</td></tr>
+  <tr><td>WriteDacl Exchange</td><td>⚠️ Détecté</td><td>✅ Confirmé (RID 3620)</td><td>✅ Cohérence 100 %</td></tr>
+</table>
+
+<!-- ===== 7. REMEDIATION ===== -->
+<h2 id="remediation">7. Plan de remédiation priorisé</h2>
+
+<table>
+  <tr><th>Priorité</th><th style="min-width:100px;">Action</th><th>Justification</th><th>Source</th></tr>
+  <tr>
+    <td><span class="reco-prio prio-p0">P0</span></td>
+    <td>Reset krbtgt × 2 (intervalle 10h)</td>
+    <td>KRBTGT inchangé depuis 2 350 jours (~6,4 ans)</td>
+    <td>PingCastle 100/100</td>
+  </tr>
+  <tr>
+    <td><span class="reco-prio prio-p0">P0</span></td>
+    <td>Suppression Exchange Org Admins (RID 3620)</td>
+    <td>WriteDacl sur domaine → vecteur DCSync direct</td>
+    <td>SharpHound BH-02</td>
+  </tr>
+  <tr>
+    <td><span class="reco-prio prio-p0">P0</span></td>
+    <td>Reset password ADMINISTRATEUR + retrait SPN MSSQL</td>
+    <td>Kerberoastable critique → compromission totale</td>
+    <td>SharpHound BH-01</td>
+  </tr>
+  <tr>
+    <td><span class="reco-prio prio-p0">P0</span></td>
+    <td>Déconnexion SRV-APP2 (Windows XP) du réseau</td>
+    <td>EOL depuis avril 2014, multiples exploits critiques</td>
+    <td>SharpHound BH-04</td>
+  </tr>
+  <tr>
+    <td><span class="reco-prio prio-p1">P1</span></td>
+    <td>Déploiement LAPS</td>
+    <td>0/477 machines, lateral movement trivial</td>
+    <td>SharpHound BH-05</td>
+  </tr>
+  <tr>
+    <td><span class="reco-prio prio-p1">P1</span></td>
+    <td>Suppression admincount sur 31 comptes fantômes</td>
+    <td>AdminSDHolder non nettoyé</td>
+    <td>SharpHound BH-03</td>
+  </tr>
+  <tr>
+    <td><span class="reco-prio prio-p1">P1</span></td>
+    <td>Retrait Unconstrained Delegation des DCs</td>
+    <td>Attaque PrinterBug/PetitPotam possible</td>
+    <td>SharpHound BH-06</td>
+  </tr>
+  <tr>
+    <td><span class="reco-prio prio-p2">P2</span></td>
+    <td>Rotation des 431 comptes pwdneverexpires</td>
+    <td>38 % des utilisateurs concernés</td>
+    <td>BH-07 / PingCastle</td>
+  </tr>
+  <tr>
+    <td><span class="reco-prio prio-p2">P2</span></td>
+    <td>Migration Windows 7 / 2008 R2 / 2012 (11 machines)</td>
+    <td>EOL, exploits publics disponibles</td>
+    <td>SharpHound BH-04</td>
+  </tr>
+  <tr>
+    <td><span class="reco-prio prio-p2">P2</span></td>
+    <td>Durcissement GPO : LLMNR off, NTLMv1 off</td>
+    <td>Recommandé PingCastle 100/100</td>
+    <td>PingCastle</td>
+  </tr>
+</table>
+
+<!-- ===== 8. TABLEAU SYNTHESE ===== -->
+<h2 id="synthese-tableau">8. Tableau de synthèse des findings</h2>
+
+<table>
+  <tr><th>ID</th><th>Finding</th><th>Sévérité</th><th>CVSS</th><th>Source</th></tr>
+  <tr>
+    <td><strong>BH-01</strong></td>
+    <td>ADMINISTRATEUR Kerberoastable (SPN MSSQL)</td>
+    <td><span class="badge badge-crit">CRITIQUE</span></td>
+    <td>9.8</td>
+    <td>SharpHound</td>
+  </tr>
+  <tr>
+    <td><strong>BH-02</strong></td>
+    <td>WriteDacl sur domaine pour Exchange Org Admins</td>
+    <td><span class="badge badge-crit">CRITIQUE</span></td>
+    <td>9.9</td>
+    <td>SharpHound + PingCastle</td>
+  </tr>
+  <tr>
+    <td><strong>BH-03</strong></td>
+    <td>53 comptes admincount=true (31 fantômes)</td>
+    <td><span class="badge badge-high">ÉLEVÉ</span></td>
+    <td>8.5</td>
+    <td>SharpHound</td>
+  </tr>
+  <tr>
+    <td><strong>BH-04</strong></td>
+    <td>12 serveurs/PC sur OS EOL (dont XP)</td>
+    <td><span class="badge badge-crit">CRITIQUE</span></td>
+    <td>9.0</td>
+    <td>SharpHound</td>
+  </tr>
+  <tr>
+    <td><strong>BH-05</strong></td>
+    <td>LAPS absent sur 477 machines</td>
+    <td><span class="badge badge-high">ÉLEVÉ</span></td>
+    <td>8.0</td>
+    <td>SharpHound + PingCastle</td>
+  </tr>
+  <tr>
+    <td><strong>BH-06</strong></td>
+    <td>2 DCs avec Unconstrained Delegation</td>
+    <td><span class="badge badge-med">MOYEN</span></td>
+    <td>6.5</td>
+    <td>SharpHound</td>
+  </tr>
+  <tr>
+    <td><strong>BH-07</strong></td>
+    <td>431 comptes pwdneverexpires (38 %)</td>
+    <td><span class="badge badge-med">MOYEN</span></td>
+    <td>5.5</td>
+    <td>SharpHound + PingCastle</td>
+  </tr>
+  <tr>
+    <td><strong>BH-08</strong></td>
+    <td>5 comptes passwordnotreqd</td>
+    <td><span class="badge badge-med">MOYEN</span></td>
+    <td>5.0</td>
+    <td>SharpHound</td>
+  </tr>
+</table>
+
+<!-- ===== FOOTER ===== -->
+<div class="footer">
+  <p><strong>Rapport généré le 12 juillet 2026</strong></p>
+  <p>Outil : SharpHound v4.3.1 — SharpHound Legacy</p>
+  <p>Pentest autorisé — Accord signé le 19/06/2026 par A. RODRIGUEZ (RSSI) et A. LITAUDON (DSI)</p>
+  <p style="margin-top:12px; color:var(--muted);">MOMBO Darwin — Mastère Cybersécurité — Sup de Vinci 2025-2026</p>
+</div>
+
+</body>
+</html>
+SharpHound
+sharphound
+rapport
+html
+finegil
+barkene
+pentest
+ad-hardening
+
+
